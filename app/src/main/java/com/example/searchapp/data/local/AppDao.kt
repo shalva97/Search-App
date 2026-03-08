@@ -5,11 +5,20 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AppDao {
-    @Query("SELECT * FROM apps ORDER BY usageCount DESC, label ASC")
+    @Query("SELECT * FROM apps WHERE isHidden = 0 ORDER BY usageCount DESC, label ASC")
+    fun getAllVisibleApps(): Flow<List<AppEntity>>
+
+    @Query("SELECT * FROM apps ORDER BY label ASC")
     fun getAllApps(): Flow<List<AppEntity>>
 
-    @Query("SELECT * FROM apps ORDER BY lastOpenedTime DESC, label ASC")
-    fun getLastOpenedApps(): Flow<List<AppEntity>>
+    @Query("SELECT * FROM apps WHERE isHidden = 0 ORDER BY lastOpenedTime DESC, label ASC")
+    fun getLastOpenedVisibleApps(): Flow<List<AppEntity>>
+
+    @Query("SELECT * FROM apps WHERE isHidden = 0 AND installedAt > :sinceTime ORDER BY installedAt DESC")
+    fun getRecentlyInstalledApps(sinceTime: Long): Flow<List<AppEntity>>
+
+    @Query("UPDATE apps SET isHidden = :isHidden WHERE packageName = :packageName")
+    suspend fun setHidden(packageName: String, isHidden: Boolean)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertApps(apps: List<AppEntity>)

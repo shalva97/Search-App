@@ -17,12 +17,12 @@ class SearchViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    private val allApps = repository.getAllApps()
+    private val allApps = repository.getAllVisibleApps()
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val searchResults: StateFlow<List<AppEntity>> = combine(
         allApps,
-        repository.getLastOpenedApps(),
+        repository.getLastOpenedVisibleApps(),
         _searchQuery
     ) { apps, lastOpened, query ->
         if (query.isBlank()) {
@@ -56,6 +56,20 @@ class SearchViewModel @Inject constructor(
         if (firstApp != null) {
             onAppClicked(firstApp)
         }
+    }
+
+    fun onHideApp(app: AppEntity) {
+        viewModelScope.launch {
+            repository.setAppHidden(app.packageName, true)
+        }
+    }
+
+    fun onUninstallApp(app: AppEntity) {
+        repository.uninstallApp(app.packageName)
+    }
+
+    fun onOpenInPlayStore(app: AppEntity) {
+        repository.openInPlayStore(app.packageName)
     }
 
     private fun fuzzyMatch(apps: List<AppEntity>, query: String): List<AppEntity> {

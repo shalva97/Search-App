@@ -7,42 +7,38 @@
 ### 1. Key Features
 
 - **Instant Focus:** Opening the app immediately triggers the keyboard. No tapping a search bar first.
-- **Fuzzy Matching:** Type "nfx" to find *Netflix* or "msg" for *Messages*.
-- **"Top Hits" Prediction:** Based on time of day and location, the app predicts your most likely destination (e.g., *Spotify* in the morning, *Uber* at 5 PM).
-- **In-App Shortcuts (Deep Linking):** Search "New Tweet" to jump directly to the Twitter compose screen, or "Scan" to open the QR scanner in a banking app.
-- **Browser-Style "Omnibox Spirit":** If an app isn't found locally, the search seamlessly transitions to a web search or a Play Store search.
-- **Privacy First:** Local indexing only. No data leaves the device.
+- **Fuzzy Matching:** Type "nfx" to find *Netflix* or "msg" for *Messages*. Prefix boosting and usage-based scoring prioritize your most relevant apps.
+- **Dynamic Startup View:** A compact 4x2 grid of your most recently opened apps appears by default when the search bar is empty.
+- **Integrated Settings:** A gear icon within the search bar provides quick access to app management features.
+- **App Privacy & Visibility:** Hide distracting or private apps from search results and the home grid via the Settings menu.
+- **Contextual Actions (Long-Press):**
+    - **Hide App:** Instantly remove an app from the search interface.
+    - **Uninstall:** Launch the system uninstallation flow directly.
+    - **Open in Play Store:** Jump to the app's store page for updates or reviews.
+- **Recently Installed:** A dedicated view in Settings shows apps installed in the last hour, making it easy to find and test new downloads.
+- **Invisible UX:** The app is excluded from Android's recents list and uses `singleInstance` launch mode to ensure a clean, one-shot interaction.
+- **Done-to-Launch:** Press the "Done" key on your keyboard to instantly open the first search result.
 
 ### 2. Technical Architecture (MVVM & Kotlin)
 
 Following **Google’s Guide to App Architecture**, the app is built with a separation of concerns to ensure testability and performance.
 
-### **Layered Architecture**
+- **UI Layer (Jetpack Compose):** A reactive, modern UI that handles state-driven layouts (Grid vs. List) and custom window insets for stable keyboard transitions.
+- **Domain Layer (ViewModel):** Manages UI state, coordinates search logic on `Dispatchers.Default`, and handles navigation and app-launch intents.
+- **Data Layer (Repository):** The single source of truth, managing a Room database that indexes installed packages.
+- **Background Tasks (WorkManager):** Performs periodic incremental indexing to keep the local database synchronized with the system's package manager.
 
-1. **UI Layer (View):** Built using **Jetpack Compose** for a reactive, modern UI. It observes state from the ViewModel.
-2. **Domain Layer (ViewModel):** Manages UI state and business logic. It uses **Kotlin Flows** to stream search results to the UI in real-time.
-3. **Data Layer (Repository):** The single source of truth. It abstracts the data sources (Local App Index vs. System Package Manager).
+### 3. Tech Stack & Libraries
 
-### **Tech Stack & Libraries**
-
-- **Language:** 100% Kotlin with an emphasis on **Coroutines** for non-blocking search indexing.
-- **Dependency Injection:** **Hilt** for standardizing DI across the app.
-- **Local Storage:** **Room Persistence Library** to cache the app index and metadata (Usage frequency, last opened time).
-- **Fuzzy Search Engine:** A custom Kotlin implementation or a lightweight library like *FuzzyWuzzy* ported to Kotlin to handle typo-tolerance.
-- **Jetpack Libraries:**
-    - **DataStore:** For storing user preferences (theme, layout settings).
-    - **WorkManager:** For periodic background indexing of newly installed apps.
-    - **Lifecycle:** To handle UI-related data in a lifecycle-conscious way.
-
-### 3. UI Strategy
-
-The UI should be **Invisible UX**—it only appears when needed and disappears the moment its job is done.
-
-- **The "Zen" Home:** A completely blank screen with a single, elegant search line in the center or bottom (thumb-friendly).
-- **Simple Backgrounds:** Transparent background.
-- **One-Handed Layout:** All results appear at the bottom of the screen, within reach of the thumb.
+- **Language:** 100% Kotlin with Coroutines and Flows for real-time reactivity.
+- **Dependency Injection:** Hilt for modular and testable component management.
+- **Local Storage:** Room Persistence Library (Schema Version 3) with `fallbackToDestructiveMigration` for rapid development.
+- **Navigation:** Jetpack Navigation Compose for seamless transitions between Search, Settings, and Recently Installed screens.
+- **Resources:** Vector-based adaptive icons and standard Android resource structures for high performance and low footprint.
 
 ### 4. Implementation Details
 
-- **App Indexing:** On first launch, the app queries `PackageManager` to build a local database of installed packages and their `LauncherActivities`.
-- **Performance:** The search query is debounced to avoid unnecessary database hits, ensuring the UI remains 60fps even with 500+ apps.
+- **Incremental Indexing:** On startup, the app performs a fast delta-update of the database instead of a full refresh, significantly improving "Time to Interactive."
+- **Search Scoring:** Results are ranked using a combination of fuzzy character matching, prefix boosting, and historical usage frequency.
+- **State Persistence:** Search state resets automatically after an app is launched, ensuring the user is always greeted with a clean interface.
+- **Zero Animation Policy:** Configured `adjustResize` and manual inset handling to eliminate jarring UI shifts when the keyboard appears.

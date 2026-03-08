@@ -1,6 +1,8 @@
 package com.example.searchapp.ui.search
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,6 +27,8 @@ import com.example.searchapp.data.local.AppEntity
 import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -33,8 +37,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.vector.ImageVector
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SearchScreen(
+    onSettingsClick: () -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -42,6 +48,18 @@ fun SearchScreen(
     
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    fun onHideApp(app: AppEntity) {
+        viewModel.onHideApp(app)
+    }
+
+    fun onUninstallApp(app: AppEntity) {
+        viewModel.onUninstallApp(app)
+    }
+
+    fun onOpenInPlayStore(app: AppEntity) {
+        viewModel.onOpenInPlayStore(app)
+    }
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
@@ -61,7 +79,7 @@ fun SearchScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Top
         ) {
-            // Search Bar at the top
+            // Search Bar at the top with Settings Icon
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
@@ -69,6 +87,15 @@ fun SearchScreen(
                     .fillMaxWidth()
                     .focusRequester(focusRequester),
                 placeholder = { Text("Search Portal...", color = Color.Gray) },
+                leadingIcon = {
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
@@ -87,6 +114,7 @@ fun SearchScreen(
                         keyboardController?.hide()
                     }
                 ),
+                shape = MaterialTheme.shapes.medium,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = Color.LightGray
@@ -110,7 +138,13 @@ fun SearchScreen(
                         items = searchResults,
                         key = { it.packageName }
                     ) { app ->
-                        AppGridItem(app = app, onClick = { viewModel.onAppClicked(app) })
+                        AppGridItem(
+                            app = app,
+                            onClick = { viewModel.onAppClicked(app) },
+                            onHideClick = { onHideApp(app) },
+                            onUninstallClick = { onUninstallApp(app) },
+                            onPlayStoreClick = { onOpenInPlayStore(app) }
+                        )
                     }
                 }
             } else {
@@ -125,7 +159,13 @@ fun SearchScreen(
                         items = searchResults,
                         key = { it.packageName }
                     ) { app ->
-                        AppResultItem(app = app, onClick = { viewModel.onAppClicked(app) })
+                        AppResultItem(
+                            app = app,
+                            onClick = { viewModel.onAppClicked(app) },
+                            onHideClick = { onHideApp(app) },
+                            onUninstallClick = { onUninstallApp(app) },
+                            onPlayStoreClick = { onOpenInPlayStore(app) }
+                        )
                     }
                 }
             }
@@ -133,11 +173,16 @@ fun SearchScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppGridItem(
     app: AppEntity,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onHideClick: () -> Unit,
+    onUninstallClick: () -> Unit,
+    onPlayStoreClick: () -> Unit
 ) {
+    var expanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val icon = remember(app.packageName, app.label) {
         try {
@@ -147,55 +192,92 @@ fun AppGridItem(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        if (icon != null) {
-            Image(
-                bitmap = icon,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(48.dp)
-                    .padding(4.dp)
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .padding(4.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = app.label.firstOrNull()?.toString() ?: "?",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+    Box {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { expanded = true }
                 )
+                .padding(4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (icon != null) {
+                Image(
+                    bitmap = icon,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .padding(4.dp)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .padding(4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = app.label.firstOrNull()?.toString() ?: "?",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
+            
+            Spacer(modifier = Modifier.height(4.dp))
+            
+            Text(
+                text = app.label,
+                style = MaterialTheme.typography.labelSmall,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
-        
-        Spacer(modifier = Modifier.height(4.dp))
-        
-        Text(
-            text = app.label,
-            style = MaterialTheme.typography.labelSmall,
-            textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth()
-        )
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("Hide App") },
+                onClick = {
+                    onHideClick()
+                    expanded = false
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Uninstall") },
+                onClick = {
+                    onUninstallClick()
+                    expanded = false
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Open in Play Store") },
+                onClick = {
+                    onPlayStoreClick()
+                    expanded = false
+                }
+            )
+        }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AppResultItem(
     app: AppEntity,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onHideClick: () -> Unit,
+    onUninstallClick: () -> Unit,
+    onPlayStoreClick: () -> Unit
 ) {
+    var expanded by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val icon = remember(app.packageName, app.label) {
         try {
@@ -205,49 +287,81 @@ fun AppResultItem(
         }
     }
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (icon != null) {
-            Image(
-                bitmap = icon,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(40.dp)
-                    .padding(4.dp)
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .padding(4.dp),
-                contentAlignment = Alignment.Center
-            ) {
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { expanded = true }
+                )
+                .padding(vertical = 12.dp, horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (icon != null) {
+                Image(
+                    bitmap = icon,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .padding(4.dp)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .padding(4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = app.label.firstOrNull()?.toString() ?: "?",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column {
                 Text(
-                    text = app.label.firstOrNull()?.toString() ?: "?",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                    text = app.label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = app.packageName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.width(16.dp))
-        
-        Column {
-            Text(
-                text = app.label,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("Hide App") },
+                onClick = {
+                    onHideClick()
+                    expanded = false
+                }
             )
-            Text(
-                text = app.packageName,
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+            DropdownMenuItem(
+                text = { Text("Uninstall") },
+                onClick = {
+                    onUninstallClick()
+                    expanded = false
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Open in Play Store") },
+                onClick = {
+                    onPlayStoreClick()
+                    expanded = false
+                }
             )
         }
     }

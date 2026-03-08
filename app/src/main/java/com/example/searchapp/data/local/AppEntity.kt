@@ -10,5 +10,7 @@ data class AppEntity(
     val iconResId: Int? = null,
     val usageCount: Int = 0,
     val lastOpenedTime: Long = 0,
-    val isSystemApp: Boolean = false
+    val isSystemApp: Boolean = false,
+    val isHidden: Boolean = false,
+    val installedAt: Long = 0
 )
