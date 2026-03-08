@@ -47,6 +47,7 @@ Following **Google’s Guide to App Architecture**, the app is built with a sepa
 ### 5. Development & CI/CD
 - **Build System:** Gradle (Kotlin DSL).
 - **GitHub Actions:**
-    - Trigger: Push a tag starting with `v*` (e.g., `v1.0.1`) to automatically create a GitHub Release.
+    - Trigger: Push to `master` to test build, or push a tag starting with `v*` (e.g., `v1.0.1`) to automatically create a GitHub Release.
+    - Automation: Uses `gradle/actions/setup-gradle` to bootstrap the build environment, even if the Gradle wrapper is missing.
     - Artifacts: The workflow builds the `unsigned` release APK and attaches it to the release.
     - Manual Dispatch: Can also be triggered manually from the "Actions" tab.

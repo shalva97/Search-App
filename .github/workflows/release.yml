@@ -23,17 +23,15 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
 
       - name: Build APK
         run: |
-          if [ -f "./gradlew" ]; then
-            chmod +x gradlew
-            ./gradlew assembleRelease
-          else
-            echo "::error::gradlew not found! Please add the Gradle wrapper to the repository."
-            exit 1
-          fi
+          gradle assembleRelease
 
       - name: Create Release
         id: create_release
