@@ -42,3 +42,11 @@ Following **Google’s Guide to App Architecture**, the app is built with a sepa
 - **Search Scoring:** Results are ranked using a combination of fuzzy character matching, prefix boosting, and historical usage frequency.
 - **State Persistence:** Search state resets automatically after an app is launched, ensuring the user is always greeted with a clean interface.
 - **Zero Animation Policy:** Configured `adjustResize` and manual inset handling to eliminate jarring UI shifts when the keyboard appears.
+- **CI/CD:** GitHub Actions workflow to automatically build and create releases with APK artifacts.
+
+### 5. Development & CI/CD
+- **Build System:** Gradle (Kotlin DSL).
+- **GitHub Actions:**
+    - Trigger: Push a tag starting with `v*` (e.g., `v1.0.1`) to automatically create a GitHub Release.
+    - Artifacts: The workflow builds the `unsigned` release APK and attaches it to the release.
+    - Manual Dispatch: Can also be triggered manually from the "Actions" tab.
