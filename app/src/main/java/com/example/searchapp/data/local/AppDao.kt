@@ -17,6 +17,18 @@ interface AppDao {
     @Query("UPDATE apps SET usageCount = usageCount + 1, lastOpenedTime = :currentTime WHERE packageName = :packageName")
     suspend fun incrementUsage(packageName: String, currentTime: Long)
 
+    @Query("SELECT COUNT(*) FROM apps")
+    suspend fun getAppCount(): Int
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertNewApps(apps: List<AppEntity>)
+
+    @Query("SELECT packageName FROM apps")
+    suspend fun getAllPackageNames(): List<String>
+
+    @Query("DELETE FROM apps WHERE packageName IN (:packageNames)")
+    suspend fun deleteApps(packageNames: List<String>)
+
     @Query("DELETE FROM apps")
     suspend fun clearAll()
 

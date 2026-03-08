@@ -19,22 +19,46 @@ class AppRepository @Inject constructor(
 
     fun getLastOpenedApps(): Flow<List<AppEntity>> = appDao.getLastOpenedApps()
 
-    suspend fun refreshAppIndex() {
+    suspend fun refreshAppIndex(force: Boolean = false) {
+        val currentAppCount = appDao.getAppCount()
+        if (currentAppCount == 0 || force) {
+            val apps = getInstalledApps()
+            appDao.clearAll()
+            appDao.insertApps(apps)
+        } else {
+            // Incremental update to be faster
+            val installedApps = getInstalledApps()
+            val installedPackageNames = installedApps.map { it.packageName }.toSet()
+            val dbPackageNames = appDao.getAllPackageNames().toSet()
+
+            // Remove uninstalled apps
+            val removedPackages = dbPackageNames - installedPackageNames
+            if (removedPackages.isNotEmpty()) {
+                appDao.deleteApps(removedPackages.toList())
+            }
+
+            // Add new apps
+            val newApps = installedApps.filter { it.packageName !in dbPackageNames }
+            if (newApps.isNotEmpty()) {
+                appDao.insertNewApps(newApps)
+            }
+        }
+    }
+
+    private fun getInstalledApps(): List<AppEntity> {
         val packageManager = context.packageManager
         val intent = Intent(Intent.ACTION_MAIN, null).apply {
             addCategory(Intent.CATEGORY_LAUNCHER)
         }
         val resolveInfos = packageManager.queryIntentActivities(intent, 0)
-        
-        val apps = resolveInfos.map { resolveInfo ->
+
+        return resolveInfos.map { resolveInfo ->
             AppEntity(
                 packageName = resolveInfo.activityInfo.packageName,
                 label = resolveInfo.loadLabel(packageManager).toString(),
                 isSystemApp = (resolveInfo.activityInfo.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0
             )
         }
-        
-        appDao.insertApps(apps)
     }
 
     suspend fun incrementUsage(packageName: String) {

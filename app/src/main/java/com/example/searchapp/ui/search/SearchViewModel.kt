@@ -17,17 +17,21 @@ class SearchViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
+    private val allApps = repository.getAllApps()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
     val searchResults: StateFlow<List<AppEntity>> = combine(
-        repository.getAllApps(),
+        allApps,
         repository.getLastOpenedApps(),
         _searchQuery
-    ) { allApps, lastOpened, query ->
+    ) { apps, lastOpened, query ->
         if (query.isBlank()) {
-            lastOpened.filter { it.lastOpenedTime > 0 }.take(8) // Show up to 8 last opened apps
+            lastOpened.filter { it.lastOpenedTime > 0 }.take(8)
         } else {
-            fuzzyMatch(allApps, query)
+            fuzzyMatch(apps, query)
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.flowOn(kotlinx.coroutines.Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         viewModelScope.launch {
@@ -56,14 +60,23 @@ class SearchViewModel @Inject constructor(
 
     private fun fuzzyMatch(apps: List<AppEntity>, query: String): List<AppEntity> {
         val lowercaseQuery = query.lowercase().trim()
-        if (lowercaseQuery.isEmpty()) return apps.take(5)
+        if (lowercaseQuery.isEmpty()) return emptyList()
 
         return apps.mapNotNull { app ->
             val label = app.label.lowercase()
             val score = calculateFuzzyScore(label, lowercaseQuery)
-            if (score > 0) app to score else null
-        }.sortedByDescending { it.second + it.first.usageCount }
+            if (score > 0) {
+                // Boost score for exact prefix and usage
+                val finalScore = when {
+                    label.startsWith(lowercaseQuery) -> score * 2 + 100
+                    label.contains(lowercaseQuery) -> score + 50
+                    else -> score
+                }
+                app to (finalScore + app.usageCount)
+            } else null
+        }.sortedByDescending { it.second }
             .map { it.first }
+            .take(20) // Limit results for performance
     }
 
     private fun calculateFuzzyScore(text: String, query: String): Int {

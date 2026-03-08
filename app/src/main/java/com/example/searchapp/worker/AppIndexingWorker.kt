@@ -17,7 +17,7 @@ class AppIndexingWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         return try {
-            repository.refreshAppIndex()
+            repository.refreshAppIndex(force = true)
             Result.success()
         } catch (e: Exception) {
             Result.retry()

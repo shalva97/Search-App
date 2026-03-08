@@ -23,12 +23,15 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.searchapp.data.local.AppEntity
 import androidx.core.graphics.drawable.toBitmap
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.graphics.vector.ImageVector
 
 @Composable
 fun SearchScreen(
@@ -56,40 +59,9 @@ fun SearchScreen(
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Bottom
+            verticalArrangement = Arrangement.Top
         ) {
-            // App Results at the bottom
-            if (searchQuery.isBlank()) {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(4),
-                    modifier = Modifier
-                        .weight(1f, fill = false)
-                        .fillMaxWidth(),
-                    contentPadding = PaddingValues(8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(searchResults) { app ->
-                        AppGridItem(app = app, onClick = { viewModel.onAppClicked(app) })
-                    }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f, fill = false)
-                        .fillMaxWidth(),
-                    reverseLayout = true,
-                    contentPadding = PaddingValues(0.dp) // Reset padding to avoid list shifts
-                ) {
-                    items(searchResults) { app ->
-                        AppResultItem(app = app, onClick = { viewModel.onAppClicked(app) })
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Search Bar at the bottom for one-handed use
+            // Search Bar at the top
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { viewModel.onSearchQueryChanged(it) },
@@ -97,6 +69,16 @@ fun SearchScreen(
                     .fillMaxWidth()
                     .focusRequester(focusRequester),
                 placeholder = { Text("Search Portal...", color = Color.Gray) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "Clear search"
+                            )
+                        }
+                    }
+                },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(
@@ -110,6 +92,43 @@ fun SearchScreen(
                     unfocusedBorderColor = Color.LightGray
                 )
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // App Results below search bar
+            if (searchQuery.isBlank()) {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(4),
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .fillMaxWidth(),
+                    contentPadding = PaddingValues(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(
+                        items = searchResults,
+                        key = { it.packageName }
+                    ) { app ->
+                        AppGridItem(app = app, onClick = { viewModel.onAppClicked(app) })
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .fillMaxWidth(),
+                    reverseLayout = false,
+                    contentPadding = PaddingValues(0.dp) // Reset padding to avoid list shifts
+                ) {
+                    items(
+                        items = searchResults,
+                        key = { it.packageName }
+                    ) { app ->
+                        AppResultItem(app = app, onClick = { viewModel.onAppClicked(app) })
+                    }
+                }
+            }
         }
     }
 }
@@ -120,7 +139,7 @@ fun AppGridItem(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val icon = remember(app.packageName) {
+    val icon = remember(app.packageName, app.label) {
         try {
             context.packageManager.getApplicationIcon(app.packageName).toBitmap().asImageBitmap()
         } catch (e: Exception) {
@@ -178,7 +197,7 @@ fun AppResultItem(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val icon = remember(app.packageName) {
+    val icon = remember(app.packageName, app.label) {
         try {
             context.packageManager.getApplicationIcon(app.packageName).toBitmap().asImageBitmap()
         } catch (e: Exception) {
